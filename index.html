@@ -147,7 +147,7 @@
 
   <div class="bottom-bar" id="bottomBar">
     <button class="pill selected" id="btnFace">Face</button>
-    <button class="pill" id="btnGray">Gray</button>
+    <button class="pill" id="btnGray">Colour</button>
     <button class="pill on" id="btnCamera">Camera</button>
     <button class="pill on" id="btnLines">Lines</button>
     <button class="pill action" id="btnDrop">Drop</button>
@@ -182,6 +182,15 @@
     let showCamera = true;
     let showLines = true;
 
+    const colorPalettes = [
+      { name: 'blue',   h: 220 },
+      { name: 'yellow', h: 45  },
+      { name: 'purple', h: 275 },
+      { name: 'green',  h: 145 },
+      { name: 'red',    h: 0   },
+    ];
+    let currentHue = colorPalettes[Math.floor(Math.random() * colorPalettes.length)].h;
+
     function log(m) { try { console.log('[FC]', m); } catch(e){} }
 
     function getGroundY() {
@@ -201,7 +210,12 @@
     }
 
     btnFace.addEventListener('click', e => { e.stopPropagation(); mode = 'face'; updateBar(); });
-    btnGray.addEventListener('click', e => { e.stopPropagation(); mode = 'gray'; updateBar(); });
+    btnGray.addEventListener('click', e => {
+      e.stopPropagation();
+      currentHue = colorPalettes[Math.floor(Math.random() * colorPalettes.length)].h;
+      mode = 'gray';
+      updateBar();
+    });
     btnCamera.addEventListener('click', e => {
       e.stopPropagation();
       showCamera = !showCamera;
@@ -306,8 +320,10 @@
         if (camColor) {
           fill = sampleVideoAtCanvasPoint((a.x+b.x+c.x)/3, (a.y+b.y+c.y)/3) || 'rgb(128,128,128)';
         } else {
-          const g = Math.round(45 + ((areas[i/3]-minA)/range)*195);
-          fill = 'rgb('+g+','+g+','+g+')';
+          const t = (areas[i/3]-minA)/range;
+          const sat = 50 + Math.random() * 30;
+          const lit = 20 + t * 55;
+          fill = 'hsl('+((currentHue + (Math.random()-0.5)*30 + 360) % 360)+','+sat+'%,'+lit+'%)';
         }
         ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.lineTo(c.x,c.y); ctx.closePath();
         ctx.fillStyle = fill; ctx.fill();
@@ -359,8 +375,9 @@
           body.fillStyle = sampleVideoAtCanvasPoint(cx,cy) || 'rgb(128,128,128)';
         } else {
           const t = Math.min(1, triangleArea(a,b,c)/5000);
-          const g = Math.round(45+t*195);
-          body.fillStyle = 'rgb('+g+','+g+','+g+')';
+          const sat = 50 + Math.random() * 30;
+          const lit = 20 + t * 55;
+          body.fillStyle = 'hsl('+((currentHue + (Math.random()-0.5)*30 + 360) % 360)+','+sat+'%,'+lit+'%)';
         }
         World.add(matterWorld, body);
       }
