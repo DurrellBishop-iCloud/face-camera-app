@@ -104,7 +104,7 @@
       border-radius: 50%;
       border: 1.5px solid rgba(255,255,255,0.12);
       background: rgba(255,255,255,0.06);
-      color: rgba(255,255,255,0.45);
+      color: #fff;
       font-family: inherit;
       font-size: 0.62rem;
       font-weight: 500;
@@ -118,23 +118,9 @@
     }
     .pill:active { transform: scale(0.9); }
 
-    .pill.selected {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #fff;
-      box-shadow: 0 0 14px rgba(99,102,241,0.5);
-    }
-    .pill.on {
-      background: rgba(255,255,255,0.14);
-      border-color: rgba(255,255,255,0.25);
-      color: #fff;
-    }
-    .pill.action {
-      border-color: rgba(255,255,255,0.08);
-      color: rgba(255,255,255,0.35);
-    }
-    .pill.action:active {
-      background: rgba(255,255,255,0.15);
+    .pill.on, .pill.selected {
+      background: rgba(255,255,255,0.18);
+      border-color: rgba(255,255,255,0.3);
       color: #fff;
     }
   </style>
@@ -330,13 +316,6 @@
       ctx.restore();
     }
 
-    function drawFaceDots(points) {
-      points.forEach(p => {
-        ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2);
-        ctx.fillStyle = 'rgba(99,102,241,0.9)'; ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 0.5; ctx.stroke();
-      });
-    }
 
     // ── Physics ──────────────────────────────────────
     function createPhysicsBodiesFromMesh() {
@@ -425,7 +404,6 @@
       const points = keypointsToCanvas(faceLandmarks[0]);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawMesh(points);
-      if (mode === 'face') drawFaceDots(points);
     }
 
     // ── Face loop ────────────────────────────────────
