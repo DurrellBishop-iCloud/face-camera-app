@@ -15,6 +15,7 @@
       --accent: #6366f1;
       --accent2: #818cf8;
       --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --bar-h: 80px;
     }
     html, body {
       width: 100%; height: 100%;
@@ -27,8 +28,10 @@
     }
 
     #video, #canvas {
-      position: fixed; inset: 0;
-      width: 100%; height: 100%;
+      position: fixed; top: 0; left: 0; right: 0;
+      bottom: calc(var(--bar-h) + var(--safe-bottom));
+      width: 100%;
+      height: calc(100% - var(--bar-h) - var(--safe-bottom));
       object-fit: cover;
       transform: scaleX(-1);
     }
@@ -38,6 +41,7 @@
     #canvas { pointer-events: none; display: none; }
     #canvas.active { display: block; }
 
+    /* ── Tap to start ── */
     .tap-overlay {
       position: fixed; inset: 0;
       display: flex; flex-direction: column;
@@ -64,6 +68,7 @@
       letter-spacing: 0.1em; text-transform: uppercase;
     }
 
+    /* ── Error ── */
     .error-overlay {
       position: fixed; inset: 0;
       display: none; flex-direction: column;
@@ -83,55 +88,55 @@
     .bottom-bar {
       position: fixed;
       bottom: 0; left: 0; right: 0;
+      height: calc(var(--bar-h) + var(--safe-bottom));
       z-index: 100;
+      background: #000;
       display: flex;
+      align-items: flex-start;
       justify-content: center;
-      padding: 0 0.5rem calc(0.6rem + var(--safe-bottom));
-      pointer-events: none;
+      padding-top: 14px;
+      gap: 12px;
     }
-    .bar-inner {
-      display: flex; gap: 2px;
-      background: rgba(10, 10, 14, 0.65);
-      backdrop-filter: blur(20px) saturate(180%);
-      -webkit-backdrop-filter: blur(20px) saturate(180%);
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 14px;
-      padding: 4px;
-      pointer-events: all;
-    }
-    .bar-btn {
-      position: relative;
-      border: none; background: transparent;
-      color: rgba(255,255,255,0.4);
+
+    .pill {
+      height: 44px;
+      min-width: 44px;
+      padding: 0 18px;
+      border-radius: 22px;
+      border: 1.5px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.45);
       font-family: inherit;
-      font-size: 0.72rem;
+      font-size: 0.78rem;
       font-weight: 500;
-      letter-spacing: 0.02em;
-      padding: 0.5rem 0.85rem;
-      border-radius: 11px;
+      letter-spacing: 0.03em;
       cursor: pointer;
-      transition: color 0.2s, background 0.2s;
-      white-space: nowrap;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s ease;
       -webkit-tap-highlight-color: transparent;
+      outline: none;
     }
-    .bar-btn:active { transform: scale(0.95); }
-    .bar-btn.active {
-      color: #fff;
-      background: rgba(99,102,241,0.35);
-    }
-    .bar-btn.toggle-on {
-      color: #fff;
-      background: rgba(255,255,255,0.1);
-    }
-    .bar-btn .dot {
-      position: absolute;
-      top: 5px; right: 5px;
-      width: 5px; height: 5px;
-      border-radius: 50%;
+    .pill:active { transform: scale(0.93); }
+
+    .pill.selected {
       background: var(--accent);
-      display: none;
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 0 12px rgba(99,102,241,0.4);
     }
-    .bar-btn.toggle-on .dot { display: block; }
+    .pill.on {
+      background: rgba(255,255,255,0.14);
+      border-color: rgba(255,255,255,0.25);
+      color: #fff;
+    }
+    .pill.action {
+      border-color: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.35);
+    }
+    .pill.action:active {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -154,17 +159,13 @@
     <button class="retry-btn" id="retryBtn">Try again</button>
   </div>
 
-  <div class="bottom-bar">
-    <div class="bar-inner">
-      <button class="bar-btn active" id="btnFace">Face</button>
-      <button class="bar-btn" id="btnGray">Gray</button>
-      <button class="bar-btn toggle-on" id="btnCamera">Camera<span class="dot"></span></button>
-      <button class="bar-btn toggle-on" id="btnLines">Lines<span class="dot"></span></button>
-      <button class="bar-btn" id="btnDrop">Drop</button>
-    </div>
+  <div class="bottom-bar" id="bottomBar">
+    <button class="pill selected" id="btnFace">Face</button>
+    <button class="pill" id="btnGray">Gray</button>
+    <button class="pill on" id="btnCamera">Camera</button>
+    <button class="pill on" id="btnLines">Lines</button>
+    <button class="pill action" id="btnDrop">Drop</button>
   </div>
-
-  <input type="file" id="maskFile" accept="image/*" hidden>
 
   <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js" crossorigin="anonymous"></script>
   <script type="module">
@@ -179,31 +180,38 @@
     const errorOverlay = document.getElementById('errorOverlay');
     const errorText    = document.getElementById('errorText');
     const retryBtn     = document.getElementById('retryBtn');
+    const bottomBar    = document.getElementById('bottomBar');
     const btnFace   = document.getElementById('btnFace');
     const btnGray   = document.getElementById('btnGray');
     const btnCamera = document.getElementById('btnCamera');
     const btnLines  = document.getElementById('btnLines');
     const btnDrop   = document.getElementById('btnDrop');
 
-    // State
     let stream = null, faceLandmarker = null, detectInterval = null, lastVideoTime = -1;
     let lastPointsForPhysics = null, physicsActive = false;
     let matterEngine = null, matterWorld = null;
     let sampleCanvas = null, sampleCtx = null;
 
-    // Mode: 'face' or 'gray'
     let mode = 'face';
     let showCamera = true;
     let showLines = true;
 
     function log(m) { try { console.log('[FC]', m); } catch(e){} }
 
+    function getGroundY() {
+      return canvas.height;
+    }
+
     // ── Bar buttons ─────────────────────────────────
     function updateBar() {
-      btnFace.classList.toggle('active', mode === 'face');
-      btnGray.classList.toggle('active', mode === 'gray');
-      btnCamera.classList.toggle('toggle-on', showCamera);
-      btnLines.classList.toggle('toggle-on', showLines);
+      btnFace.classList.toggle('selected', mode === 'face');
+      btnGray.classList.toggle('selected', mode === 'gray');
+      btnFace.classList.remove('on');
+      btnGray.classList.remove('on');
+      btnCamera.classList.toggle('on', showCamera);
+      btnCamera.classList.remove('selected');
+      btnLines.classList.toggle('on', showLines);
+      btnLines.classList.remove('selected');
     }
 
     btnFace.addEventListener('click', e => { e.stopPropagation(); mode = 'face'; updateBar(); });
@@ -217,7 +225,6 @@
     btnLines.addEventListener('click', e => { e.stopPropagation(); showLines = !showLines; updateBar(); });
     btnDrop.addEventListener('click', e => { e.stopPropagation(); createPhysicsBodiesFromMesh(); });
 
-    // Tap screen to drop
     document.addEventListener('click', e => {
       if (tapOverlay.classList.contains('visible')) return;
       if (errorOverlay.classList.contains('visible')) return;
@@ -241,8 +248,11 @@
 
     // ── Canvas ───────────────────────────────────────
     function resizeCanvas() {
-      if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
-        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+      const w = window.innerWidth;
+      const barH = bottomBar.offsetHeight;
+      const h = window.innerHeight - barH;
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w; canvas.height = h;
       }
     }
     window.addEventListener('resize', resizeCanvas);
@@ -270,7 +280,6 @@
       return 'rgb('+d[0]+','+d[1]+','+d[2]+')';
     }
 
-    // ── Keypoints ────────────────────────────────────
     function keypointsToCanvas(kps) {
       const vw = video.videoWidth, vh = video.videoHeight;
       if (!vw || !vh) return kps.map(k => ({x:k.x*canvas.width, y:k.y*canvas.height}));
@@ -286,12 +295,10 @@
       return 0.5*Math.abs((b.x-a.x)*(c.y-a.y)-(c.x-a.x)*(b.y-a.y));
     }
 
-    // ── Draw mesh (gray or camera colour) ────────────
+    // ── Draw mesh ────────────────────────────────────
     function drawMesh(points) {
       if (!Delaunay || !points || points.length < 3) return;
       lastPointsForPhysics = points;
-      const useCam = (mode === 'gray') ? false : false;
-      // Gray mode: gray by area. Face mode: camera colours.
       const camColor = (mode === 'face');
       if (camColor && !ensureSampleCanvas()) return;
       const pts = points.map(p => [p.x, p.y]);
@@ -323,7 +330,6 @@
       ctx.restore();
     }
 
-    // ── Face dots ────────────────────────────────────
     function drawFaceDots(points) {
       points.forEach(p => {
         ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2);
@@ -339,16 +345,22 @@
       if (!matterEngine) { matterEngine = Engine.create(); matterWorld = matterEngine.world; }
       World.clear(matterWorld);
       matterEngine.gravity.x = 0; matterEngine.gravity.y = 1; matterEngine.gravity.scale = 0.0012;
-      const W = canvas.width, H = canvas.height, now = Date.now();
+
+      const W = canvas.width, H = canvas.height;
+      const groundY = H;
+      const now = Date.now();
+
       World.add(matterWorld, [
-        Bodies.rectangle(W/2, H+30, W+200, 60, {isStatic:true, restitution:0.55, friction:0.3}),
-        Bodies.rectangle(-30, H/2, 60, H+200, {isStatic:true}),
-        Bodies.rectangle(W+30, H/2, 60, H+200, {isStatic:true})
+        Bodies.rectangle(W/2, groundY + 30, W + 200, 60, {isStatic:true, restitution:0.55, friction:0.3}),
+        Bodies.rectangle(-30, H/2, 60, H + 200, {isStatic:true}),
+        Bodies.rectangle(W+30, H/2, 60, H + 200, {isStatic:true})
       ]);
+
       const camColor = (mode === 'face');
       if (camColor) ensureSampleCanvas();
       const pts = lastPointsForPhysics.map(p=>[p.x,p.y]);
       const del = Delaunay.from(pts), tri = del.triangles;
+
       for (let i = 0; i < tri.length; i += 3) {
         const a = lastPointsForPhysics[tri[i]], b = lastPointsForPhysics[tri[i+1]], c = lastPointsForPhysics[tri[i+2]];
         const cx = (a.x+b.x+c.x)/3, cy = (a.y+b.y+c.y)/3;
@@ -373,8 +385,10 @@
         }
         World.add(matterWorld, body);
       }
+
       physicsActive = true;
-      const FD = 1800, FF = 1400;
+      const FD = 2200, FF = 1600;
+
       function loop() {
         if (!physicsActive || !matterEngine) return;
         requestAnimationFrame(loop);
@@ -469,7 +483,6 @@
       }
     }
 
-    // ── Error retry ──────────────────────────────────
     retryBtn.addEventListener('click', () => {
       errorOverlay.classList.remove('visible');
       tapOverlay.classList.add('visible');
@@ -478,7 +491,6 @@
 
     window.addEventListener('beforeunload', () => { if (stream) stream.getTracks().forEach(t=>t.stop()); });
 
-    // ── Init ─────────────────────────────────────────
     async function launchFromTap() {
       tapOverlay.style.transition = 'opacity 0.35s';
       tapOverlay.style.opacity = '0';
